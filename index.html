@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDA Analyzer - White Reference Method</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #856404;
+        }
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #ddd;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .tab.active {
+            background-color: #fff;
+            border-bottom: 2px solid #007bff;
+        }
+        .tab-content {
+            display: none;
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .upload-box {
+            border: 2px solid #007bff;
+            padding: 15px;
+            text-align: center;
+        }
+        .upload-box h3 {
+            margin-top: 0;
+        }
+        .image-preview {
+            max-width: 100%;
+            max-height: 250px;
+            margin: 10px 0;
+            display: none;
+            border: 1px solid #ddd;
+        }
+        .image-preview.show {
+            display: block;
+        }
+        .placeholder {
+            background-color: #e9ecef;
+            padding: 50px 20px;
+            color: #6c757d;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        select {
+            padding: 8px;
+            font-size: 14px;
+        }
+        .calib-info {
+            background-color: #d1ecf1;
+            border-left: 3px solid #0c5460;
+            padding: 10px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        .calibration-input {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            padding: 8px;
+            font-size: 14px;
+        }
+        .calibration-data {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .calibration-point {
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        #results-window {
+            display: none;
+            margin-top: 20px;
+        }
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .results-grid-full {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .plot-container {
+            border: 1px solid #ddd;
+            background-color: white;
+        }
+        canvas {
+            display: none;
+        }
+        .result-text {
+            background-color: #fff9e6;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-line;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>MDA Analyzer - White Reference Method</h1>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('analysis')">Analysis</button>
+        <button class="tab" onclick="switchTab('calibration')">Calibration</button>
+    </div>
+
+    <!-- Analysis Tab -->
+    <div id="analysis" class="tab-content active">
+        <div class="warning">
+            <strong>IMPORTANT:</strong> White reference must be taken under the SAME conditions as your sample!<br>
+            Same lighting, same camera position, same background.
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-box">
+                <h3>WHITE REFERENCE</h3>
+                <p>Pure white surface placed where sample goes</p>
+                <div class="placeholder" id="white-placeholder">No white reference loaded</div>
+                <img id="white-preview" class="image-preview">
+                <input type="file" id="white-input" accept="image/*" onchange="loadImage('white')" style="display:none;">
+                <button onclick="document.getElementById('white-input').click()">Upload White Reference</button>
+            </div>
+
+            <div class="upload-box">
+                <h3>SAMPLE</h3>
+                <p>Your colored MDA solution</p>
+                <div class="placeholder" id="sample-placeholder">No sample loaded</div>
+                <img id="sample-preview" class="image-preview">
+                <input type="file" id="sample-input" accept="image/*" onchange="loadImage('sample')" style="display:none;">
+                <button onclick="document.getElementById('sample-input').click()">Upload Sample</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <label>Analysis Channel: </label>
+            <select id="channel-select">
+                <option value="blue">Blue</option>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="gray">Gray</option>
+            </select>
+        </div>
+
+        <div class="calib-info" id="calib-info">
+            Current Calibration: A = 0.1200×[MDA] + 0.0038 (R² = 0.9994)
+        </div>
+
+        <div style="text-align: center;">
+            <button id="analyze-btn" onclick="analyzeConcentration()" disabled>Analyze MDA Concentration</button>
+            <button onclick="showInstructions()">Instructions</button>
+        </div>
+
+        <div id="results-window">
+            <h2 style="text-align: center;">Analysis Results</h2>
+            
+            <div class="results-grid-full">
+                <div class="plot-container">
+                    <div id="sample-plot" style="width:100%; height:300px;"></div>
+                </div>
+                <div class="plot-container">
+                    <div id="white-plot" style="width:100%; height:300px;"></div>
+                </div>
+            </div>
+
+            <div class="results-grid">
+                <div class="plot-container">
+                    <div id="channel-plot" style="width:100%; height:300px;"></div>
+                </div>
+                <div class="plot-container">
+                    <div id="calibration-plot" style="width:100%; height:300px;"></div>
+                </div>
+                <div class="plot-container">
+                    <div id="intensity-plot" style="width:100%; height:300px;"></div>
+                </div>
+            </div>
+
+            <div class="result-text" id="result-text"></div>
+        </div>
+    </div>
+
+    <!-- Calibration Tab -->
+    <div id="calibration" class="tab-content">
+        <h2>Calibration Curve Builder</h2>
+        <p>Enter calibration standards (Concentration, Absorbance):</p>
+
+        <div class="calibration-input">
+            <div class="input-group">
+                <label>[MDA] (μM):</label>
+                <input type="number" id="conc-input" step="0.1" placeholder="0.0">
+            </div>
+            <div class="input-group">
+                <label>Absorbance:</label>
+                <input type="number" id="abs-input" step="0.0001" placeholder="0.0000">
+            </div>
+            <button onclick="addCalibrationPoint()">Add Point</button>
+        </div>
+
+        <div class="calibration-data" id="calibration-data">
+            <p style="text-align: center; color: #999;">No calibration points added yet</p>
+        </div>
+
+        <div style="text-align: center;">
+            <button onclick="calculateCalibration()">Calculate Curve</button>
+            <button onclick="clearCalibration()">Clear All</button>
+            <button onclick="loadDefaultCalibration()">Load Default</button>
+        </div>
+
+        <div id="calib-result" style="text-align: center; margin: 20px 0; font-weight: bold; color: green;"></div>
+
+        <div class="plot-container" style="margin: 20px 0;">
+            <div id="calib-preview-plot" style="width:100%; height:400px;"></div>
+        </div>
+    </div>
+
+    <canvas id="temp-canvas" style="display:none;"></canvas>
+
+    <script>
+        let whiteImage = null;
+        let sampleImage = null;
+        let calibrationPoints = [];
+        let currentCalibration = {
+            slope: 0.1200,
+            intercept: 0.0038,
+            rSquared: 0.9994
+        };
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function loadImage(type) {
+            const input = document.getElementById(`${type}-input`);
+            const preview = document.getElementById(`${type}-preview`);
+            const placeholder = document.getElementById(`${type}-placeholder`);
+            
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    if (type === 'white') whiteImage = img;
+                    else sampleImage = img;
+                    
+                    preview.src = e.target.result;
+                    preview.classList.add('show');
+                    placeholder.style.display = 'none';
+                    checkAnalysisReady();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function checkAnalysisReady() {
+            document.getElementById('analyze-btn').disabled = !(whiteImage && sampleImage);
+        }
+
+        function extractColorIntensity(image, channel) {
+            const canvas = document.getElementById('temp-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let sum = 0;
+            let count = 0;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                let value;
+                if (channel === 'red') value = data[i];
+                else if (channel === 'green') value = data[i + 1];
+                else if (channel === 'blue') value = data[i + 2];
+                else if (channel === 'gray') value = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                sum += value;
+                count++;
+            }
+            return sum / count;
+        }
+
+        function getAllChannelIntensities(image) {
+            return {
+                red: extractColorIntensity(image, 'red'),
+                green: extractColorIntensity(image, 'green'),
+                blue: extractColorIntensity(image, 'blue')
+            };
+        }
+
+        function analyzeConcentration() {
+            const channel = document.getElementById('channel-select').value;
+            
+            const sampleIntensity = extractColorIntensity(sampleImage, channel);
+            const whiteIntensity = extractColorIntensity(whiteImage, channel);
+            const absorbance = -Math.log10(sampleIntensity / whiteIntensity);
+            const concentration = (absorbance - currentCalibration.intercept) / currentCalibration.slope;
+            
+            const sampleChannels = getAllChannelIntensities(sampleImage);
+            const whiteChannels = getAllChannelIntensities(whiteImage);
+            
+            displayResults(concentration, absorbance, sampleIntensity, whiteIntensity, 
+                          sampleChannels, whiteChannels, channel);
+        }
+
+        function displayResults(conc, abs, sampleInt, whiteInt, sampleCh, whiteCh, channel) {
+            document.getElementById('results-window').style.display = 'block';
+            
+            // Sample image plot
+            Plotly.newPlot('sample-plot', [{
+                z: [[0]],
+                type: 'heatmap',
+                showscale: false,
+                colorscale: [[0, 'rgb(100,150,200)'], [1, 'rgb(100,150,200)']]
+            }], {
+                title: 'MDA Sample',
+                xaxis: {visible: false},
+                yaxis: {visible: false},
+                margin: {t: 40, b: 10, l: 10, r: 10}
+            }, {displayModeBar: false});
+
+            // White reference plot
+            Plotly.newPlot('white-plot', [{
+                z: [[0]],
+                type: 'heatmap',
+                showscale: false,
+                colorscale: [[0, 'rgb(220,220,220)'], [1, 'rgb(220,220,220)']]
+            }], {
+                title: 'White Reference',
+                xaxis: {visible: false},
+                yaxis: {visible: false},
+                margin: {t: 40, b: 10, l: 10, r: 10}
+            }, {displayModeBar: false});
+
+            // Color channel comparison
+            Plotly.newPlot('channel-plot', [{
+                x: ['Red', 'Green', 'Blue'],
+                y: [sampleCh.red, sampleCh.green, sampleCh.blue],
+                type: 'bar',
+                name: 'Sample',
+                marker: {color: ['#FF6B6B', '#4ECDC4', '#45B7D1']}
+            }, {
+                x: ['Red', 'Green', 'Blue'],
+                y: [whiteCh.red, whiteCh.green, whiteCh.blue],
+                type: 'bar',
+                name: 'Reference',
+                marker: {color: ['#C44569', '#2C7873', '#1A5490']}
+            }], {
+                title: 'Color Channel Comparison',
+                yaxis: {title: 'Color Intensity'},
+                barmode: 'group',
+                margin: {t: 40, b: 40, l: 50, r: 20}
+            }, {displayModeBar: false});
+
+            // Calibration curve
+            const maxConc = Math.max(12, conc * 1.2);
+            const concRange = Array.from({length: 100}, (_, i) => (maxConc / 99) * i);
+            const absRange = concRange.map(c => currentCalibration.slope * c + currentCalibration.intercept);
+            
+            Plotly.newPlot('calibration-plot', [{
+                x: concRange,
+                y: absRange,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Calibration Curve',
+                line: {color: 'blue'}
+            }, {
+                x: [conc],
+                y: [abs],
+                type: 'scatter',
+                mode: 'markers',
+                name: 'Sample',
+                marker: {size: 10, color: 'red'}
+            }], {
+                title: 'Calibration Curve with Sample',
+                xaxis: {title: '[MDA] (μM)'},
+                yaxis: {title: 'A₅₈₆'},
+                margin: {t: 40, b: 50, l: 60, r: 20}
+            }, {displayModeBar: false});
+
+            // Intensity to Absorbance
+            const intensityRange = Array.from({length: 100}, (_, i) => 1 + (254 / 99) * i);
+            const absorbanceRange = intensityRange.map(i => -Math.log10(i / whiteInt));
+            
+            Plotly.newPlot('intensity-plot', [{
+                x: intensityRange,
+                y: absorbanceRange,
+                type: 'scatter',
+                mode: 'lines',
+                line: {color: 'green'}
+            }, {
+                x: [sampleInt],
+                y: [abs],
+                type: 'scatter',
+                mode: 'markers',
+                name: 'Sample',
+                marker: {size: 10, color: 'red'},
+                text: [`Sample<br>I=${sampleInt.toFixed(1)}<br>A=${abs.toFixed(3)}`],
+                hoverinfo: 'text'
+            }], {
+                title: 'Intensity → Absorbance Conversion',
+                xaxis: {title: 'Color Intensity (I)'},
+                yaxis: {title: 'Absorbance (A₅₈₆)'},
+                showlegend: false,
+                margin: {t: 40, b: 50, l: 60, r: 20}
+            }, {displayModeBar: false});
+
+            // Results text
+            const resultText = `ANALYSIS RESULTS
+
+Sample Intensity: ${sampleInt.toFixed(1)}
+Reference Intensity: ${whiteInt.toFixed(1)}
+Absorbance (A₅₈₆): ${abs.toFixed(4)}
+MDA Concentration: ${conc.toFixed(4)} μM
+
+Calibration:
+A₅₈₆ = ${currentCalibration.slope.toFixed(4)}×[MDA]
+     + ${currentCalibration.intercept.toFixed(4)}
+R² = ${currentCalibration.rSquared.toFixed(4)}`;
+            
+            document.getElementById('result-text').textContent = resultText;
+            
+            // Scroll to results
+            document.getElementById('results-window').scrollIntoView({behavior: 'smooth'});
+        }
+
+        function addCalibrationPoint() {
+            const conc = parseFloat(document.getElementById('conc-input').value);
+            const abs = parseFloat(document.getElementById('abs-input').value);
+            
+            if (isNaN(conc) || isNaN(abs)) {
+                alert('Please enter valid numbers');
+                return;
+            }
+            
+            calibrationPoints.push({concentration: conc, absorbance: abs});
+            updateCalibrationDisplay();
+            
+            document.getElementById('conc-input').value = '';
+            document.getElementById('abs-input').value = '';
+        }
+
+        function updateCalibrationDisplay() {
+            const container = document.getElementById('calibration-data');
+            
+            if (calibrationPoints.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999;">No calibration points added yet</p>';
+                return;
+            }
+            
+            container.innerHTML = calibrationPoints.map((p, i) => `
+                <div class="calibration-point">
+                    [MDA] = ${p.concentration.toFixed(4)} μM, A = ${p.absorbance.toFixed(4)}
+                    <button onclick="removePoint(${i})" style="float:right; padding:2px 8px;">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removePoint(index) {
+            calibrationPoints.splice(index, 1);
+            updateCalibrationDisplay();
+        }
+
+        function calculateCalibration() {
+            if (calibrationPoints.length < 2) {
+                alert('Need at least 2 calibration points');
+                return;
+            }
+            
+            const n = calibrationPoints.length;
+            const sumX = calibrationPoints.reduce((sum, p) => sum + p.concentration, 0);
+            const sumY = calibrationPoints.reduce((sum, p) => sum + p.absorbance, 0);
+            const sumXY = calibrationPoints.reduce((sum, p) => sum + p.concentration * p.absorbance, 0);
+            const sumX2 = calibrationPoints.reduce((sum, p) => sum + p.concentration ** 2, 0);
+            const sumY2 = calibrationPoints.reduce((sum, p) => sum + p.absorbance ** 2, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX ** 2);
+            const intercept = (sumY - slope * sumX) / n;
+            const r = (n * sumXY - sumX * sumY) / Math.sqrt((n * sumX2 - sumX ** 2) * (n * sumY2 - sumY ** 2));
+            const rSquared = r ** 2;
+            
+            currentCalibration = {slope, intercept, rSquared};
+            
+            document.getElementById('calib-result').textContent = 
+                `Calibration: A₅₈₆ = ${slope.toFixed(4)} × [MDA] + ${intercept.toFixed(4)} (R² = ${rSquared.toFixed(4)})`;
+            
+            document.getElementById('calib-info').textContent = 
+                `Current Calibration: A = ${slope.toFixed(4)}×[MDA] + ${intercept.toFixed(4)} (R² = ${rSquared.toFixed(4)})`;
+            
+            updateCalibrationPreview();
+        }
+
+        function updateCalibrationPreview() {
+            const maxConc = Math.max(...calibrationPoints.map(p => p.concentration), 5);
+            const concRange = Array.from({length: 100}, (_, i) => (maxConc / 99) * i);
+            const absRange = concRange.map(c => currentCalibration.slope * c + currentCalibration.intercept);
+            
+            Plotly.newPlot('calib-preview-plot', [{
+                x: concRange,
+                y: absRange,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Calibration Curve',
+                line: {color: 'blue', width: 2}
+            }, {
+                x: calibrationPoints.map(p => p.concentration),
+                y: calibrationPoints.map(p => p.absorbance),
+                type: 'scatter',
+                mode: 'markers',
+                name: 'Standards',
+                marker: {size: 8, color: 'red'}
+            }], {
+                title: 'MDA Standard Curve',
+                xaxis: {title: '[MDA] -μM', range: [0, maxConc]},
+                yaxis: {title: 'A₅₈₆ CORR', range: [0, Math.max(...absRange) * 1.1]},
+                margin: {t: 60, b: 60, l: 70, r: 40}
+            }, {displayModeBar: false});
+        }
+
+        function clearCalibration() {
+            calibrationPoints = [];
+            updateCalibrationDisplay();
+            document.getElementById('calib-result').textContent = '';
+            Plotly.purge('calib-preview-plot');
+        }
+
+        function loadDefaultCalibration() {
+            calibrationPoints = [
+                {concentration: 0.0, absorbance: 0.0038},
+                {concentration: 0.5, absorbance: 0.0638},
+                {concentration: 1.0, absorbance: 0.1238},
+                {concentration: 2.0, absorbance: 0.2438},
+                {concentration: 3.0, absorbance: 0.3638},
+                {concentration: 4.0, absorbance: 0.4838}
+            ];
+            updateCalibrationDisplay();
+            calculateCalibration();
+        }
+
+        function showInstructions() {
+            alert(`PROPER WHITE REFERENCE METHOD:
+
+1. SETUP YOUR EXPERIMENT:
+   - Place white reference (white tile/paper) where sample will be
+   - Take picture with exact experimental setup
+
+2. REPLACE WITH SAMPLE:
+   - Remove white reference
+   - Place MDA solution in SAME position
+   - Take picture WITHOUT changing anything
+
+3. SAME CONDITIONS MEANS:
+   - Same lighting
+   - Same camera position/distance
+   - Same camera settings
+   - Same background
+   - Taken within minutes
+
+4. CALIBRATION:
+   - Use Calibration tab to build curve
+   - Or use default calibration`);
+        }
+
+        // Load default calibration on page load
+        window.onload = function() {
+            loadDefaultCalibration();
+        };
+    </script>
+</body>
+</html>
